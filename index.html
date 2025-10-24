@@ -75,23 +75,17 @@
             fill: #e0e0e0;
         }
 
-        button {
+        .counter {
             margin-top: 30px;
             padding: 12px 24px;
-            font-size: 16px;
-            border: none;
-            border-radius: 25px;
-            background: rgba(255, 255, 255, 0.2);
+            font-size: 24px;
             color: white;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        button:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        #rotation-counter {
+            font-weight: bold;
+            font-size: 28px;
         }
     </style>
 </head>
@@ -112,7 +106,7 @@
                 </g>
             </svg>
         </div>
-        <button onclick="randomSpin()">Spin!</button>
+        <div class="counter">Rotations: <span id="rotation-counter">0</span></div>
     </div>
 
     <script>
@@ -126,7 +120,28 @@
         let lastTimestamp = 0;
         const friction = 0.985; // Increased friction for more realistic feel
         const minVelocity = 0.001;
+        const velocityScale = 0.5; // Scale down the velocity for more controlled spinning
         let centerX, centerY;
+        let totalRotations = 0;
+        let lastAngle = 0;
+
+        function updateRotationCounter() {
+            // Calculate change in angle
+            let deltaAngle = angle - lastAngle;
+            
+            // Handle angle wrapping
+            if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+            if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+            
+            // Add to total rotations
+            totalRotations += deltaAngle / (2 * Math.PI);
+            
+            // Update the counter display
+            const counterDisplay = document.getElementById('rotation-counter');
+            counterDisplay.textContent = Math.abs(Math.floor(totalRotations));
+            
+            lastAngle = angle;
+        }
 
         function updateSpinnerCenter() {
             const rect = spinner.getBoundingClientRect();
@@ -170,7 +185,7 @@
             
             const deltaTime = Math.max(1, currentTime - lastTimestamp) / 1000;
             // Update angular velocity for release momentum
-            angularVelocity = deltaAngle / deltaTime;
+            angularVelocity = (deltaAngle / deltaTime) * velocityScale;
             
             lastTouchAngle = currentAngle;
             lastTimestamp = currentTime;
@@ -192,10 +207,6 @@
             }
         }
 
-        function randomSpin() {
-            angularVelocity = (Math.random() * 20 + 10) * (Math.random() < 0.5 ? 1 : -1);
-        }
-
         function updateSpinner() {
             spinner.style.transform = `rotate(${angle}rad)`;
         }
@@ -205,6 +216,7 @@
                 angle += angularVelocity;
                 angularVelocity *= friction;
                 updateSpinner();
+                updateRotationCounter();
             }
             requestAnimationFrame(animate);
         }

@@ -129,7 +129,7 @@
         let centerX, centerY;
 
         function updateSpinnerCenter() {
-            const rect = container.getBoundingClientRect();
+            const rect = spinner.getBoundingClientRect();
             centerX = rect.left + rect.width / 2;
             centerY = rect.top + rect.height / 2;
         }
@@ -145,9 +145,10 @@
             event.preventDefault();
             updateSpinnerCenter();
             isDragging = true;
-            lastTouchAngle = getAngleFromEvent(event);
+            const startAngle = getAngleFromEvent(event);
+            lastTouchAngle = startAngle;
             lastTimestamp = performance.now();
-            dragStartAngle = lastTouchAngle - angle; // Store the offset between cursor and current rotation
+            dragStartAngle = angle - startAngle; // Store offset between current rotation and cursor
         }
 
         function handleMove(event) {
@@ -157,21 +158,19 @@
             const currentAngle = getAngleFromEvent(event);
             const currentTime = performance.now();
             
-            // Direct angle following during drag
-            angle = currentAngle - dragStartAngle;
+            // Make the spinner follow the cursor directly
+            angle = currentAngle + dragStartAngle;
             
-            // Calculate angular velocity for momentum
+            // Calculate velocity for momentum after release
             let deltaAngle = currentAngle - lastTouchAngle;
             
             // Handle angle wrapping
             if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
             if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
             
-            const deltaTime = (currentTime - lastTimestamp) / 1000; // Convert to seconds
-            if (deltaTime > 0) {
-                // Calculate instantaneous angular velocity
-                angularVelocity = deltaAngle / deltaTime;
-            }
+            const deltaTime = Math.max(1, currentTime - lastTimestamp) / 1000;
+            // Update angular velocity for release momentum
+            angularVelocity = deltaAngle / deltaTime;
             
             lastTouchAngle = currentAngle;
             lastTimestamp = currentTime;

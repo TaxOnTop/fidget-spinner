@@ -87,6 +87,20 @@
             font-weight: bold;
             font-size: 28px;
         }
+
+        #debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -107,9 +121,17 @@
             </svg>
         </div>
         <div class="counter">Rotations: <span id="rotation-counter">0</span></div>
+        <div id="debug-info"></div>
     </div>
 
     <script>
+        // Debug mode toggle
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'd') {
+                debugMode = !debugMode;
+                document.getElementById('debug-info').style.display = debugMode ? 'block' : 'none';
+            }
+        });
         const spinner = document.querySelector('.spinner');
         const container = document.querySelector('.spinner-container');
         let angle = 0;
@@ -118,29 +140,49 @@
         let dragStartAngle = 0;
         let lastTouchAngle = 0;
         let lastTimestamp = 0;
-        const friction = 0.985; // Increased friction for more realistic feel
-        const minVelocity = 0.001;
-        const velocityScale = 0.5; // Scale down the velocity for more controlled spinning
+        // Physics constants
+        const FRICTION = 0.98; // More gradual slowdown
+        const MIN_VELOCITY = 0.001; // Stop tiny rotations
+        const MAX_VELOCITY = 15; // Cap maximum spin speed
+        const DRAG_TO_ROTATION_SCALE = 0.3; // Scale factor for drag-to-rotation conversion
+        
+        // State variables
         let centerX, centerY;
-        let totalRotations = 0;
-        let lastAngle = 0;
+        let totalAngle = 0; // Track continuous rotation
+        let lastFrameAngle = 0;
+        let rotations = 0;
+        let debugMode = false; // Toggle with 'D' key
 
-        function updateRotationCounter() {
-            // Calculate change in angle
-            let deltaAngle = angle - lastAngle;
+        function updateRotationCounter(currentAngle) {
+            // Calculate change in angle since last frame
+            let deltaAngle = currentAngle - lastFrameAngle;
             
             // Handle angle wrapping
             if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
             if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
             
-            // Add to total rotations
-            totalRotations += deltaAngle / (2 * Math.PI);
+            // Update total angle
+            totalAngle += deltaAngle;
             
-            // Update the counter display
+            // Calculate rotations (positive or negative)
+            rotations = totalAngle / (2 * Math.PI);
+            
+            // Update the display
             const counterDisplay = document.getElementById('rotation-counter');
-            counterDisplay.textContent = Math.abs(Math.floor(totalRotations));
+            const absRotations = Math.abs(Math.floor(rotations));
+            counterDisplay.textContent = absRotations;
             
-            lastAngle = angle;
+            // Update debug info if enabled
+            if (debugMode) {
+                const debugDisplay = document.getElementById('debug-info');
+                debugDisplay.textContent = `
+                    Velocity: ${angularVelocity.toFixed(3)}
+                    Total Angle: ${(totalAngle * 180 / Math.PI).toFixed(1)}°
+                    Rotations: ${rotations.toFixed(2)}
+                `.trim();
+            }
+            
+            lastFrameAngle = currentAngle;
         }
 
         function updateSpinnerCenter() {
@@ -183,9 +225,13 @@
             if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
             if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
             
-            const deltaTime = Math.max(1, currentTime - lastTimestamp) / 1000;
-            // Update angular velocity for release momentum
-            angularVelocity = (deltaAngle / deltaTime) * velocityScale;
+            const deltaTime = Math.max(0.016, currentTime - lastTimestamp) / 1000;
+            
+            // Calculate and scale angular velocity
+            angularVelocity = (deltaAngle / deltaTime) * DRAG_TO_ROTATION_SCALE;
+            
+            // Cap maximum velocity
+            angularVelocity = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, angularVelocity));
             
             lastTouchAngle = currentAngle;
             lastTimestamp = currentTime;
@@ -212,11 +258,18 @@
         }
 
         function animate(timestamp) {
-            if (!isDragging && Math.abs(angularVelocity) > minVelocity) {
+            if (!isDragging && Math.abs(angularVelocity) > MIN_VELOCITY) {
+                // Update angle based on velocity
                 angle += angularVelocity;
-                angularVelocity *= friction;
+                
+                // Apply friction
+                angularVelocity *= FRICTION;
+                
+                // Update visuals
                 updateSpinner();
-                updateRotationCounter();
+                updateRotationCounter(angle);
+            } else if (!isDragging) {
+                angularVelocity = 0; // Complete stop when below threshold
             }
             requestAnimationFrame(animate);
         }

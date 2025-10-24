@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Fidget Spinner</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #12c2e9, #c471ed, #f64f59);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            text-align: center;
+            user-select: none;
+        }
+
+        h1 {
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+
+        .instructions {
+            color: white;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .spinner-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .spinner {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+
+        .lobe {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: background-color 0.3s;
+        }
+
+        .lobe:nth-child(1) { top: 0; left: 70px; }
+        .lobe:nth-child(2) { bottom: 17px; left: 17px; }
+        .lobe:nth-child(3) { bottom: 17px; right: 17px; }
+
+        .center {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #333;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        button {
+            margin-top: 30px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fidget Spinner</h1>
+        <p class="instructions">Drag or tap to spin!</p>
+        <div class="spinner-container">
+            <div class="spinner">
+                <div class="lobe"></div>
+                <div class="lobe"></div>
+                <div class="lobe"></div>
+                <div class="center"></div>
+            </div>
+        </div>
+        <button onclick="randomSpin()">Spin!</button>
+    </div>
+
+    <script>
+        const spinner = document.querySelector('.spinner');
+        let angle = 0;
+        let velocity = 0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let lastTime = performance.now();
+        const friction = 0.995; // Adjust this value to change how quickly it slows down
+        const minVelocity = 0.001;
+
+        function handleStart(event) {
+            isDragging = true;
+            const point = event.touches ? event.touches[0] : event;
+            lastMouseX = point.clientX;
+            lastMouseY = point.clientY;
+            lastTime = performance.now();
+        }
+
+        function handleMove(event) {
+            if (!isDragging) return;
+            
+            const point = event.touches ? event.touches[0] : event;
+            const currentX = point.clientX;
+            const currentY = point.clientY;
+            const currentTime = performance.now();
+            
+            // Calculate center of spinner
+            const rect = spinner.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Calculate angles
+            const lastAngle = Math.atan2(lastMouseY - centerY, lastMouseX - centerX);
+            const currentAngle = Math.atan2(currentY - centerY, currentX - centerX);
+            
+            // Calculate angular velocity
+            let deltaAngle = currentAngle - lastAngle;
+            if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+            if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+            
+            const deltaTime = currentTime - lastTime;
+            if (deltaTime > 0) {
+                velocity = deltaAngle / (deltaTime / 1000);
+            }
+            
+            lastMouseX = currentX;
+            lastMouseY = currentY;
+            lastTime = currentTime;
+        }
+
+        function handleEnd() {
+            isDragging = false;
+        }
+
+        function randomSpin() {
+            velocity = (Math.random() * 15 + 10) * (Math.random() < 0.5 ? 1 : -1);
+        }
+
+        function animate() {
+            if (!isDragging && Math.abs(velocity) > minVelocity) {
+                angle += velocity;
+                velocity *= friction;
+                spinner.style.transform = `rotate(${angle}rad)`;
+            } else if (!isDragging) {
+                velocity = 0;
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        // Mouse events
+        spinner.addEventListener('mousedown', handleStart);
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+
+        // Touch events
+        spinner.addEventListener('touchstart', handleStart);
+        document.addEventListener('touchmove', handleMove, { passive: true });
+        document.addEventListener('touchend', handleEnd);
+
+        // Start animation loop
+        animate();
+    </script>
+</body>
+</html>
